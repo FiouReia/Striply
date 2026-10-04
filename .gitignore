@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.sites-runtime/
+
+# Local AI agent configuration and instructions
+/.codex/
+/AGENTS.md
+/CLAUDE.md
