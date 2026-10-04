@@ -1,0 +1,29 @@
+import { RangeField } from "@/components/range-field";
+import { stickers } from "./stickers";
+import { fonts, type EditableLayer, type TextLayer } from "./types";
+import type { CollageLayout } from "../collage/layout";
+export function LayerPanel({ layers, selected, layout, onSelect, onChange, onAdd, onDelete }: { layers: EditableLayer[]; selected: string | null; layout: CollageLayout; onSelect: (id: string) => void; onChange: (layer: EditableLayer) => void; onAdd: (layer: EditableLayer) => void; onDelete: (id: string) => void }) {
+ const active = layers.find(layer => layer.id === selected);
+ const bounds = () => ({ id: crypto.randomUUID(), x: 60, y: 60, width: 150, height: 150, rotation: 0, visible: true });
+ function addText(text = "Your little message") { onAdd({ ...bounds(), type: "text", text, width: Math.min(480, layout.width - 120), height: 100, font: "serif", fontSize: 32, weight: "normal", align: "center", color: "#292820" }); }
+ const changeText = (patch: Partial<TextLayer>) => { if (active?.type === "text") onChange({ ...active, ...patch }); };
+ return <section className="panel layer-panel"><span className="eyebrow">A PERSONAL TOUCH</span><h2>Text & stickers</h2>
+  <details open><summary>Add something</summary><div className="layer-add-buttons"><button className="secondary" disabled={layers.length >= 20} onClick={() => addText()}>Add text</button><button className="secondary" disabled={layers.length >= 20} onClick={() => onAdd({ ...bounds(), type: "overlay", color: "#eab9cb", opacity: 0.25, width: 240, height: 90 })}>Add color overlay</button></div>
+   <label className="field">Text idea<select aria-label="Text idea" defaultValue="" onChange={event => { if (event.target.value) addText(event.target.value === "today" ? new Date().toLocaleDateString() : event.target.value); event.target.value = ""; }} disabled={layers.length >= 20}><option value="">Choose an idea...</option><option>Our favorite day</option><option>Event name</option><option value="today">Today&apos;s date</option><option>Made to be kept</option></select></label>
+   <div className="sticker-picker">{stickers.map(sticker => <button key={sticker.id} disabled={layers.length >= 20} className="sticker-choice" aria-label={`Add ${sticker.name} sticker`} onClick={() => onAdd({ ...bounds(), type: "sticker", stickerId: sticker.id })}><span className="sticker-icon" style={{ backgroundImage: `url(/stickers/${sticker.id}.svg)` }} aria-hidden="true" /><span>{sticker.category}</span></button>)}</div>
+  </details>
+  <div className="layer-list" role="group" aria-label="Composition layers">{layers.map((layer, index) => <button className={selected === layer.id ? "active" : ""} key={layer.id} aria-pressed={selected === layer.id} onClick={() => onSelect(layer.id)}>{index + 1}. {layer.type === "text" ? layer.text.slice(0, 20) || "Empty text" : layer.type === "sticker" ? `${layer.stickerId} sticker` : "Color overlay"}</button>)}</div>
+  {active && <div className="layer-controls">
+   {active.type === "text" && <><label className="field">Text<input maxLength={100} value={active.text} onChange={event => changeText({ text: event.target.value })} /></label><label className="field">Font<select aria-label="Font" value={active.font} onChange={event => changeText({ font: event.target.value as TextLayer["font"] })}>{Object.keys(fonts).map(font => <option key={font} value={font}>{font}</option>)}</select></label><RangeField label="Font size" value={active.fontSize} min={12} max={120} onChange={fontSize => changeText({ fontSize })} /><label className="field">Weight<select aria-label="Weight" value={active.weight} onChange={event => changeText({ weight: event.target.value as TextLayer["weight"] })}><option value="normal">Regular</option><option value="bold">Bold</option></select></label><label className="field">Text alignment<select aria-label="Text alignment" value={active.align} onChange={event => changeText({ align: event.target.value as TextLayer["align"] })}>{["left", "center", "right"].map(align => <option key={align}>{align}</option>)}</select></label></>}
+   {(active.type === "text" || active.type === "overlay") && <label className="color-field">Layer color<input type="color" value={active.color} onChange={event => onChange({ ...active, color: event.target.value })} /></label>}
+   {active.type === "overlay" && <RangeField label="Opacity" min={0} max={1} step={0.01} value={active.opacity} onChange={opacity => onChange({ ...active, opacity })} />}
+   <details className="layer-positioning" key={active.id}><summary>Position, size & rotation</summary><RangeField label="Layer horizontal position" min={0} max={Math.max(0, layout.width - active.width)} value={active.x} onChange={x => onChange({ ...active, x })} />
+   <RangeField label="Layer vertical position" min={0} max={Math.max(0, layout.height - active.height)} value={active.y} onChange={y => onChange({ ...active, y })} />
+   <RangeField label="Layer width" min={20} max={layout.width} value={active.width} onChange={width => onChange({ ...active, width, x: Math.min(active.x, layout.width - width) })} />
+   <RangeField label="Layer height" min={20} max={layout.height} value={active.height} onChange={height => onChange({ ...active, height, y: Math.min(active.y, layout.height - height) })} />
+   <RangeField label="Layer rotation" min={-180} max={180} value={active.rotation} onChange={rotation => onChange({ ...active, rotation })} />
+   </details><label className="check-field">Show layer<input type="checkbox" checked={active.visible} onChange={event => onChange({ ...active, visible: event.target.checked })} /></label><button className="secondary full" onClick={() => onDelete(active.id)}>Delete layer</button>
+  </div>}
+  <p className="muted small">Drag a layer in the preview, use arrow keys, or adjust its position here. Up to 20 layers.</p>
+ </section>;
+}

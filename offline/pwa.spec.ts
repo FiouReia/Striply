@@ -1,0 +1,17 @@
+import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+test("built PWA loads, imports, edits, restores and exports offline", async ({ page, context }) => {
+ await page.goto("/"); await expect(page.getByText("Ready to use offline", { exact: true })).toBeVisible({ timeout: 30000 });
+ await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+ const bytes = await page.evaluate(async () => { const canvas = document.createElement("canvas"); canvas.width = 400; canvas.height = 300; const ctx = canvas.getContext("2d")!; ctx.fillStyle = "#d582ad"; ctx.fillRect(0, 0, 400, 300); const blob = await new Promise<Blob>(resolve => canvas.toBlob(blob => resolve(blob!))); return Array.from(new Uint8Array(await blob.arrayBuffer())); });
+ await context.setOffline(true); await page.reload(); await expect(page.getByRole("heading", { name: /Your moments/ })).toBeVisible();
+ await page.getByLabel("Choose photos", { exact: true }).setInputFiles(Array.from({ length: 4 }, (_, i) => ({ name: `offline-${i}.png`, mimeType: "image/png", buffer: Buffer.from(bytes) })));
+ await expect(page.getByRole("status", { name: "Editor status" })).toContainText("4 photos added");
+ await page.getByRole("navigation", { name: "Editor steps" }).getByRole("button", { name: /Customize/ }).click();
+ await page.getByRole("button", { name: "Add Heart sticker", exact: true }).click();
+ await expect(page.getByRole("status", { name: "Autosave status" })).toHaveText("Saved on this device");
+ await page.reload(); await page.getByRole("button", { name: "Restore", exact: true }).click();
+ await expect(page.getByRole("button", { name: /Download PNG/ })).toBeEnabled();
+ const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: /Download PNG/ }).click(); const download = await downloading; const png = await readFile((await download.path())!); expect(png.readUInt32BE(16)).toBe(600); expect(png.readUInt32BE(20)).toBe(1800);
+ await context.setOffline(false);
+});

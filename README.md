@@ -1,19 +1,53 @@
-# Striply
+# Striply V2
 
-A private, browser-only four-photo strip editor built with Next.js 16, React 19, TypeScript 6 and Tailwind 4.
+A private, browser-only digital photo booth and collage editor built on the existing Next.js 16 / React 19 / TypeScript 6 / Tailwind 4 application.
 
 ## Run
 
-Node 20.9+ and pnpm are required. On Windows PowerShell, use `pnpm.cmd` if script execution is disabled.
+Use Node 20.9+ and pnpm. On Windows PowerShell, use `pnpm.cmd` if script execution is disabled.
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Open http://127.0.0.1:3000. Photos remain on your device; there are no photo uploads, accounts or backend. Refreshing closes the current session.
+Open http://127.0.0.1:3000. Upload photos, use a camera, or start a four-shot Photo Booth session. Camera permission is requested only after camera entry. The default countdown is three seconds with a one-second pause; both timings are configurable. Review and retake individual shots before continuing. Captured output is not mirrored even when the preview is.
 
-## Check
+## Editing
+
+Original photo files stay untouched. Crop/pan/zoom, rotate by 90 degrees, flip, and apply configured filters or individual color adjustments. Add custom text, curated local stickers and color overlays; move them in the preview or use position/size/rotation controls. Classic and three-photo strips, square and Polaroid grids, and full 4x6 collages share one renderer. The three-photo strip keeps the fourth photo available when switching layouts.
+
+Undo/redo supports buttons, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z. Continuous gestures coalesce into one action; history is limited to 40 metadata snapshots and trimmed further when retained photo resources exceed an estimated 160 MB budget. Current photos are always retained. Native text inputs retain normal text undo behavior. Up to 20 composition layers are supported.
+
+## Local saving
+
+Projects autosave to IndexedDB after a short pause. Original image files are stored once per source, independently of project metadata. On reopening, choose Restore or Start New. Unsupported or damaged project records remain saved until an explicit Start New action. Storage failures do not prevent editing or exporting; recovery controls explain when saving is unavailable. Clearing browser/site data removes device-local projects. There are no accounts or cloud backups.
+
+## Export and print
+
+Download PNG or JPEG with Digital (50% pixel dimensions), High Quality (75%) or Print (100%) presets. JPEG quality ranges from 70% to 98%. Print always renders original images at full resolution.
+
+- 2x6 strip: 600x1800 pixels; 4x6 dual strip: 1200x1800.
+- Three-photo strip: same physical strip dimensions.
+- Square/Polaroid grids: 1200x1200 pixels, 4x4 inches at 300 DPI target.
+- Full 4x6 collage: 1200x1800 pixels.
+
+Safe-area and margin previews stay out of exports. The optional cut guide is exported only when explicitly enabled for a dual strip. Choose matching paper dimensions, 100% scale, no margins and no browser headers/footers. Physical printer margins and borderless support vary by printer.
+
+Supported inputs: JPEG/PNG/WebP, up to 20 MB and 40 megapixels per photo. Convert HEIC before importing. Export always uses originals, not a screenshot of the interface.
+
+## Production and offline installation
+
+```sh
+pnpm build
+pnpm start
+```
+
+Production serves the static `out/` folder. Production bundles application icons and a manifest; the build generates a versioned precached service worker shell. After the app reports Ready to use offline, it can reopen, import/edit photos, add local stickers, save/restore projects and export offline. Camera capture also works where the browser permits. Development is intentionally uncached.
+
+Install app invokes an available browser install prompt or explains Add to Home Screen. Installation and camera APIs require HTTPS or localhost. Full Screen is optional and has a visible exit; Escape exits native fullscreen. Browser install/fullscreen support varies, especially on iOS. A waiting service worker update activates after existing Striply windows close, preserving active editing sessions.
+
+## Verify
 
 ```sh
 pnpm lint
@@ -22,12 +56,9 @@ pnpm test
 pnpm exec playwright install chromium
 pnpm test:e2e
 pnpm build
+pnpm test:offline
 ```
 
-The production build exports static files to `out/`, suitable for any static host. Branding is centralized in `src/config/brand.ts`. See ARCHITECTURE.md for domain boundaries. Project skills are under `.codex/skills/`.
+Browser tests use mocked media streams, not a physical webcam. Production offline tests run a separate static server on port 3001. See ARCHITECTURE.md for state, resource, migration and rendering decisions. Branding is centralized in src/config/brand.ts. Local agent skills/configuration remain ignored by Git and are not required to run the application.
 
-## Print
-
-PNG files use 600×1800 pixels for a 2×6 strip or 1200×1800 for a 4×6 sheet containing two identical strips. These dimensions target 300 DPI at the stated physical sizes; PNG metadata is not relied on for paper sizing. Select the correct paper dimensions, 100% scale, no margins, no headers/footers. Hardware margins and borderless settings depend on your printer. Source photos below print resolution can appear soft.
-
-Supported inputs: JPEG, PNG, WebP; 20 MB and 40 megapixels maximum per photo. HEIC needs conversion before import. Current editing supports cover-fit crop, pan and zoom, five templates, footer text and style controls. Each photo supports Original, Black & White, Sepia, Warm, Cool and Vintage looks plus brightness, contrast and saturation adjustments. Effects appear in previews, downloads and prints while original files remain untouched. Rotation, webcam, persistence and PDF are future work.
+Deferred: accounts, Supabase, cloud storage/sharing, galleries, payments, GIF/video sessions, AI features, printer queues, PDF and OS kiosk locking.

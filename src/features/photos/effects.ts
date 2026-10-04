@@ -1,9 +1,11 @@
-export type PhotoEffectPreset = "original" | "bw" | "sepia" | "warm" | "cool" | "vintage";
+export type PhotoEffectPreset = "original" | "bw" | "sepia" | "warm" | "cool" | "vintage" | "high-contrast" | "soft";
 export interface PhotoEffects {
   preset: PhotoEffectPreset;
   brightness: number;
   contrast: number;
   saturation: number;
+  grayscale?: number;
+  sepia?: number;
 }
 export const effectPresets: { id: PhotoEffectPreset; name: string }[] = [
   { id: "original", name: "Original" },
@@ -12,10 +14,20 @@ export const effectPresets: { id: PhotoEffectPreset; name: string }[] = [
   { id: "warm", name: "Warm" },
   { id: "cool", name: "Cool" },
   { id: "vintage", name: "Vintage" },
+  { id: "high-contrast", name: "High Contrast" },
+  { id: "soft", name: "Soft" },
 ];
-export const defaultEffects = (): PhotoEffects => ({ preset: "original", brightness: 100, contrast: 100, saturation: 100 });
+interface FilterConfiguration { red: number; green: number; blue: number; lift: number; saturation: number; contrast: number; sepia: number; grayscale: number }
+const neutral: FilterConfiguration = { red: 1, green: 1, blue: 1, lift: 0, saturation: 1, contrast: 1, sepia: 0, grayscale: 0 };
+export const filterConfigurations: Record<PhotoEffectPreset, FilterConfiguration> = {
+ original: { ...neutral }, bw: { ...neutral, grayscale: 1 }, sepia: { ...neutral, sepia: 1 },
+ warm: { ...neutral, red: 1.08, green: 1.02, blue: 0.9 }, cool: { ...neutral, red: 0.9, green: 1.02, blue: 1.1 },
+ vintage: { ...neutral, red: 0.9, green: 0.88, blue: 0.8, lift: 19, saturation: 0.75 },
+ "high-contrast": { ...neutral, contrast: 1.4 }, soft: { ...neutral, contrast: 0.85, lift: 8, saturation: 0.9 },
+};
+export const defaultEffects = (): PhotoEffects => ({ preset: "original", brightness: 100, contrast: 100, saturation: 100, grayscale: 0, sepia: 0 });
 export function hasPhotoEffects(effects: PhotoEffects): boolean {
-  return effects.preset !== "original" || effects.brightness !== 100 || effects.contrast !== 100 || effects.saturation !== 100;
+  return effects.preset !== "original" || effects.brightness !== 100 || effects.contrast !== 100 || effects.saturation !== 100 || (effects.grayscale ?? 0) !== 0 || (effects.sepia ?? 0) !== 0;
 }
 const bounded = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(200, value)) / 100 : 1;
 /** Process only the cropped frame pixels. Alpha and the original source stay untouched. */
@@ -24,31 +36,22 @@ export function applyPhotoEffects(pixels: Uint8ClampedArray, effects: PhotoEffec
   const brightness = bounded(effects.brightness);
   const contrast = bounded(effects.contrast);
   const saturation = bounded(effects.saturation);
+  const config = filterConfigurations[effects.preset];
   for (let i = 0; i < pixels.length; i += 4) {
     let r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-    switch (effects.preset) {
-      case "bw": {
-        const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        r = g = b = gray;
-        break;
-      }
-      case "sepia": {
-        const red = 0.393 * r + 0.769 * g + 0.189 * b;
-        const green = 0.349 * r + 0.686 * g + 0.168 * b;
-        b = 0.272 * r + 0.534 * g + 0.131 * b;
-        r = red; g = green;
-        break;
-      }
-      case "warm": r *= 1.08; g *= 1.02; b *= 0.9; break;
-      case "cool": r *= 0.9; g *= 1.02; b *= 1.1; break;
-      case "vintage": {
-        const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        r = (gray + (r - gray) * 0.75) * 0.9 + 24;
-        g = (gray + (g - gray) * 0.75) * 0.88 + 19;
-        b = (gray + (b - gray) * 0.75) * 0.8 + 12;
-        break;
-      }
-    }
+    const sourceGray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    r = (sourceGray + (r - sourceGray) * config.saturation) * config.red + config.lift;
+    g = (sourceGray + (g - sourceGray) * config.saturation) * config.green + config.lift;
+    b = (sourceGray + (b - sourceGray) * config.saturation) * config.blue + config.lift;
+    const sepia = Math.max(config.sepia, (effects.sepia ?? 0) / 100);
+    const grayscale = Math.max(config.grayscale, (effects.grayscale ?? 0) / 100);
+    const sr = 0.393 * r + 0.769 * g + 0.189 * b;
+    const sg = 0.349 * r + 0.686 * g + 0.168 * b;
+    const sb = 0.272 * r + 0.534 * g + 0.131 * b;
+    r += (sr - r) * sepia; g += (sg - g) * sepia; b += (sb - b) * sepia;
+    const grayPreset = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    r += (grayPreset - r) * grayscale; g += (grayPreset - g) * grayscale; b += (grayPreset - b) * grayscale;
+    r = (r - 128) * config.contrast + 128; g = (g - 128) * config.contrast + 128; b = (b - 128) * config.contrast + 128;
     const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     pixels[i] = ((gray + (r - gray) * saturation - 128) * contrast + 128) * brightness;
     pixels[i + 1] = ((gray + (g - gray) * saturation - 128) * contrast + 128) * brightness;

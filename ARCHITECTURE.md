@@ -1,27 +1,36 @@
-# Striply architecture
+# Striply V2 architecture
 
-V1 is a local-only Next.js App Router application. The server serves the application shell; photos never leave the browser. Branding lives in src/config/brand.ts.
+## V1 audit and migration plan
+The existing app has a reusable pure crop/layout model, a Canvas renderer, original File ownership, per-photo effects and desktop/mobile tests. Constraints are a fixed four-slot single-layout model, component-local state and no persisted projects. Extend these modules and keep regression coverage; do not replace the app shell or introduce a backend.
 
-## Boundaries
-- features/photos: validation, original File/object URL ownership and decoding.
-- features/editor: React state and accessible pan/zoom interaction. Transforms are serializable, independent of original files.
-- features/templates: typed, immutable design configurations.
-- features/collage: pure physical layout and crop calculations; shared Canvas renderer.
-- features/export: re-decode original sources and encode a print-resolution canvas.
-- features/print: isolated print document with exact physical page dimensions.
-- components: shared controls; app: route shell, global styles and metadata.
+## Domain boundaries
+- photos: validation/decoding, non-destructive transforms and configured effects.
+- project: versioned serializable project metadata, bounded history, IndexedDB persistence and a separately owned decoded-image registry.
+- collage: configured layouts, oriented crops and one renderer for photo/text/sticker/overlay layers.
+- editor: existing workflow controls, selection and progressive layer editing.
+- templates: visual themes/categories independent from layout definitions.
+- camera: media service, lifecycle hook, capture utility and cancellable booth sessions.
+- export/print: original-source rendering, PNG/JPEG formats, digital/high/print scales, physical page geometry and optional exported guides.
+- pwa: production-only versioned shell caching, install and fullscreen enhancements.
 
-## Rendering contract
-All layout measurements use a canonical 600x1800 strip at 300 pixels/inch. Preview scales this layout; export renders originals at canonical resolution. A sheet is 1200x1800 with two identical strips. Crop uses cover-fit source rectangles and normalized pan in [-1,1]; zoom is [1,3]. Changing layout recomputes crops without modifying source images. Rotation can extend the transform model and renderer later; photo effects remain separate from crop transforms.
+Branding stays in src/config/brand.ts. App Router server components only create the static shell; all photos/camera/projects stay on the user's device. No accounts, cloud storage, galleries, analytics or payments.
 
-## Resource and state ownership
-React owns a four-slot array and independent settings. Files are not encoded into state. Object URLs are revoked on replacement, removal and unmount. Preview uses reduced decoded images; export decodes sources afresh and releases them. Async imports are serialized and guard unmount. Max 20 MB/file and 40 megapixels decoded limit constrain resource use. No persistence or backend in V1; a future project serializer can store transforms/settings and an adapter can store original blobs separately. Undo/redo can snapshot serializable state without duplicating pixels.
+## Project and history ownership
+Project version 2 stores IDs, ordered photo metadata, layout/template IDs, settings, layers and timestamps. Files live in IndexedDB photo records; ImageBitmaps/object URLs live in a Map outside history. React subscribes to a small project store. History holds up to 40 metadata snapshots, never copies pixels. An estimated 160 MB retained-source budget trims oldest undo/farthest redo records while keeping all current photos. Continuous edits coalesce by action key until pointer/key release; discrete actions break the group. Undo/redo updates metadata only, so sources remain available for deleted/replaced photos until no current/history record references them. UI selection, export preferences and camera state are separate.
 
-## Extension decisions
-Camera capture can produce Files through the photo loader. Future layouts can provide frames to the same renderer. Export encoding is separate from geometry, supporting JPEG/WebP and future PDF. Supabase, PWA, queues, accounts and commerce are intentionally deferred.
+## Geometry and rendering
+Classic/three-photo strips use 600x1800 canonical pixels; square and Polaroid grids use 1200x1200 (4x4 inches at 300 DPI); full collages use 1200x1800. Strip sheet mode duplicates the full composition at x=600. Frames are calculated from a common layout schema. Quarter-turn rotation changes oriented source dimensions, pan/zoom crops that coordinate system, and a Canvas transform maps original sources directly into frame-size scratch canvases. Effects process only cropped pixels and are shared by preview/export. Scratch canvases are released after each render. Local SVG sticker assets are decoded once and used by the same renderer. Curated system fonts avoid network font requirements; text is bounded and painted as plain text.
 
-## Verification
-Unit tests cover physical geometry, crop bounds, template validity and file validation. Browser tests cover upload/edit/reorder/template/preview/PNG dimensions and print document, plus mobile and keyboard operation. Release gates are lint, strict typecheck, tests, browser E2E and production build. Browser printing requires 100% scale, matching paper size and disabled headers/footers; printer hardware margins cannot be controlled by JavaScript.
+## Layers
+Discriminated layers have ID/type/position/size/rotation/visibility. Photo layers derive from frames; editable text, sticker and overlay layers are metadata. Positions are canonical composition coordinates; layout changes rescale layer bounds. Pointer movement and numeric controls use the same state actions and history batching. Footer title/date/message preserve the V1 contract alongside custom text layers.
 
-## Per-photo effects
-PhotoEffects is serializable state independent of crop transforms and original image resources. Presets and brightness/contrast/saturation adjustments use a shared pixel processor in features/photos/effects.ts. The renderer crops first, processes only frame-size pixels, then clips/composites the result; effects cannot bleed into borders, footer or adjacent photos. Preview processes reduced-size frame pixels, while export re-decodes originals and processes print-resolution frame pixels. A per-render cache reuses filtered frames for the identical second strip and releases scratch canvases afterwards. This avoids dependence on inconsistent browser support for Canvas filters. Effect reset preserves crop; photo replacement creates neutral effects; reordering carries settings with the photo.
+## Persistence and recovery
+IndexedDB stores one unfinished project and its original Files in an atomic transaction, with a debounced writer. Blobs are never base64 encoded. Startup blocks autosave until Restore or Start New is chosen. Restoring validates and explicitly migrates legacy v1 records to v2. Unsupported/future records are preserved and recovery errors shown. Quota/blocked/unsupported storage failures never stop editing; an explicit retry is available. Stale asynchronous loads are disposed. Autosave does not store object URLs or decoded images.
+
+## Camera
+Media permission is requested only after camera entry. A service provides acquisition, device enumeration, capture and useful errors. The hook stops tracks on device changes, close, unmount and stale acquisitions. The preview may mirror; capture never does. A cancellable session runs four countdown/capture/pause cycles, with configurable durations and review/individual retakes. Counts other than four remain a future session extension. Fullscreen has a visible exit and Escape support.
+
+## PWA and release
+A build step inventories out/ after static export, emits a content-hashed precache manifest and a versioned worker. Worker install caches the complete shell/assets; activation retires old caches, without forcibly interrupting active sessions. Only same-origin GET static requests are cached. Production registration shows offline availability after install; development stays uncached. Editing/import/camera (where permitted)/export/IndexedDB work offline. HTTPS or localhost is required for media and service workers.
+
+Release gates: lint, strict TypeScript, unit/integration tests, upload/camera/restore browser tests and production build. A dedicated static-server test verifies offline shell/import/export. Real printer hardware, mobile camera constraints and browser install UI depend on the platform; exact canvas/page geometry is tested independently.

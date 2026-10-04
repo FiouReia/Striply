@@ -9,6 +9,8 @@ export function PhotoEffectsPanel({ effects, onChange }: { effects: PhotoEffects
         <span className={`effect-swatch ${preset.id}`} aria-hidden="true" /><span>{preset.name}</span>
       </button>)}
     </div>
+    <RangeField label="Grayscale" value={effects.grayscale ?? 0} min={0} max={100} suffix="%" onChange={grayscale => onChange({ ...effects, grayscale })} />
+    <RangeField label="Sepia amount" value={effects.sepia ?? 0} min={0} max={100} suffix="%" onChange={sepia => onChange({ ...effects, sepia })} />
     <RangeField label="Brightness" value={effects.brightness} min={0} max={200} suffix="%" onChange={brightness => onChange({ ...effects, brightness })} />
     <RangeField label="Contrast" value={effects.contrast} min={0} max={200} suffix="%" onChange={contrast => onChange({ ...effects, contrast })} />
     <RangeField label="Saturation" value={effects.saturation} min={0} max={200} suffix="%" onChange={saturation => onChange({ ...effects, saturation })} />

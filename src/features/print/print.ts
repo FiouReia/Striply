@@ -1,9 +1,10 @@
+import { exportDimensions } from "../collage/layout";
 import type { PrintFormat } from "../collage/layout";
-export function openPrintWindow(format: PrintFormat): Window {
+export function openPrintWindow(format: PrintFormat, layoutId = "classic"): Window {
  const win = window.open("", "_blank"); if (!win) throw new Error("Allow pop-ups to open the print preview.");
  win.document.title = "Preparing photo print"; win.document.body.textContent = "Preparing your print…";
- const width = format === "sheet" ? 4 : 2;
- const style = win.document.createElement("style"); style.textContent = `@page { size: ${width}in 6in; margin: 0; } * { box-sizing: border-box; } html, body { margin: 0; padding: 0; } img { display: block; width: ${width}in; height: 6in; } @media screen { body { background: #eee; display: grid; justify-content: center; padding: 24px; } }`; win.document.head.append(style);
+ const dimensions = exportDimensions(format, layoutId); const width = dimensions.width / 300, height = dimensions.height / 300;
+ const style = win.document.createElement("style"); style.textContent = `@page { size: ${width}in ${height}in; margin: 0; } * { box-sizing: border-box; } html, body { margin: 0; padding: 0; } img { display: block; width: ${width}in; height: ${height}in; } @media screen { body { background: #eee; display: grid; justify-content: center; padding: 24px; } }`; win.document.head.append(style);
  return win;
 }
 export async function printBlob(win: Window, blob: Blob) {
