@@ -51,8 +51,8 @@ export const projectRepository: ProjectRepository = {
 };
 export function serializeProject(store: ProjectStore): SavedProject {
  const project = structuredClone(store.getSnapshot().present);
- const files = project.photos.flatMap(photo => {
-  if (!photo) return []; const resource = store.resources.get(photo.id); if (!resource) throw new Error("A photo source is unavailable. Replace the photo and retry saving.");
+ const files = [...project.photos, project.event?.logoPhoto].flatMap(photo => {
+  if (!photo) return []; const resource = store.resources.get(photo.id); if(resource?.cloudPreview)throw new Error("Cloud originals are still loading. Retry loading before saving or exporting."); if (!resource) throw new Error("A photo source is unavailable. Replace the photo and retry saving.");
   return [{ id: photo.id, file: resource.file }];
  });
  return { project, files };
@@ -61,7 +61,7 @@ export async function hydrateProject(record: SavedProject): Promise<{ project: S
  const project = migrateProject(record.project), photos: Photo[] = [];
  try {
   if (!Array.isArray(record.files)) throw new Error("The saved photo files are missing.");
-  for (const metadata of project.photos) {
+  for (const metadata of [...project.photos, project.event?.logoPhoto]) {
    if (!metadata) continue; const item = record.files.find(file => file.id === metadata.id);
    if (!item || !(item.file instanceof Blob) || validateFile(item.file as File)) throw new Error("A saved photo source is invalid. Your saved project has been kept.");
    const file = item.file instanceof File ? item.file : new File([item.file], "saved-photo.png", { type: item.file.type });

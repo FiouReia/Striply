@@ -10,8 +10,11 @@ test("built PWA loads, imports, edits, restores and exports offline", async ({ p
  await page.getByRole("navigation", { name: "Editor steps" }).getByRole("button", { name: /Customize/ }).click();
  await page.getByRole("button", { name: "Add Heart sticker", exact: true }).click();
  await expect(page.getByRole("status", { name: "Autosave status" })).toHaveText("Saved on this device");
- await page.reload(); await page.getByRole("button", { name: "Restore", exact: true }).click();
+ await page.getByText("Save & share",{exact:true}).click();await page.getByRole("button",{name:"Save on Device",exact:true}).click();await expect(page.getByRole("status",{name:"Editor status"})).toContainText("Local Projects");
+ await page.goto("/local-projects");await expect(page.getByRole("link",{name:"Open",exact:true})).toBeVisible();await page.getByRole("link",{name:"Open",exact:true}).click();
+ await page.getByRole("button", { name: "Restore", exact: true }).click();
  await expect(page.getByRole("button", { name: /Download PNG/ })).toBeEnabled();
  const downloading = page.waitForEvent("download"); await page.getByRole("button", { name: /Download PNG/ }).click(); const download = await downloading; const png = await readFile((await download.path())!); expect(png.readUInt32BE(16)).toBe(600); expect(png.readUInt32BE(20)).toBe(1800);
+ const cached=await page.evaluate(async()=>{const urls=[];for(const key of await caches.keys())for(const request of await(await caches.open(key)).keys())urls.push(new URL(request.url).pathname);return urls;});expect(cached.some(url=>url.startsWith("/api/")||url.startsWith("/auth/")||url==="/account")).toBe(false);
  await context.setOffline(false);
 });

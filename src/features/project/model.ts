@@ -4,7 +4,7 @@ import { templates, type StripSettings } from "../templates/templates";
 import type { EditableLayer } from "../layers/types";
 import { layouts } from "../collage/layout";
 export interface ProjectPhoto { id: string; width: number; height: number; transform: PhotoTransform; effects: PhotoEffects }
-export interface StriplyProject { id: string; version: 2; createdAt: string; updatedAt: string; layoutId: string; templateId: string; photos: (ProjectPhoto | null)[]; layers: EditableLayer[]; settings: StripSettings }
+export interface StriplyProject { id: string; version: 2; createdAt: string; updatedAt: string; layoutId: string; templateId: string; photos: (ProjectPhoto | null)[]; layers: EditableLayer[]; settings: StripSettings; event?: { id: string; allowCustomization: boolean; logoPhoto?: ProjectPhoto } }
 export function newProject(): StriplyProject {
  const now = new Date().toISOString();
  return { id: crypto.randomUUID(), version: 2, createdAt: now, updatedAt: now, layoutId: "classic", templateId: "classic", photos: [null, null, null, null], layers: [], settings: { ...templates[0].settings } };
@@ -23,7 +23,8 @@ export function migrateProject(value: unknown): StriplyProject {
  }
  if (typeof p.id !== "string" || typeof p.createdAt !== "string" || typeof p.updatedAt !== "string" || !layouts.some(l => l.id === p.layoutId) || !templates.some(t => t.id === p.templateId) || !Array.isArray(p.photos) || p.photos.length !== 4 || !Array.isArray(p.layers) || p.layers.length > 20 || !record(p.settings)) throw new Error("The saved project is incomplete. Your saved data has been kept.");
  const ids = new Set<string>();
- for (const photo of p.photos) {
+ if(p.event !== undefined && (!record(p.event) || typeof p.event.id !== "string" || !/^[a-f0-9-]{36}$/i.test(p.event.id) || typeof p.event.allowCustomization !== "boolean")) throw new Error("Saved event settings are invalid. Your saved data has been kept.");
+ for (const photo of [...p.photos, ...(record(p.event) && p.event.logoPhoto ? [p.event.logoPhoto] : [])]) {
   if (photo === null) continue;
   if (!record(photo) || typeof photo.id !== "string" || ids.has(photo.id) || !finite(photo.width, 1, 40000000) || !finite(photo.height, 1, 40000000) || photo.width * photo.height > 40000000 || !record(photo.transform) || !record(photo.effects)) throw new Error("A saved photo is invalid. Your saved data has been kept.");
   ids.add(photo.id); const t = photo.transform, e = photo.effects;

@@ -8,7 +8,7 @@ export function createProjectStore() {
  const resources = new Map<string, Photo>(); const listeners = new Set<() => void>();
  function publish(next: HistoryState) {
   if (next === state) return; state = next;
-  const referenced = () => new Set([state.present, ...state.past, ...state.future].flatMap(p => p.photos.flatMap(photo => photo ? [photo.id] : [])));
+  const referenced = () => new Set([state.present, ...state.past, ...state.future].flatMap(p => [...p.photos, p.event?.logoPhoto].flatMap(photo => photo ? [photo.id] : [])));
   const bytes = () => [...referenced()].reduce((sum, id) => { const photo = resources.get(id); return sum + (photo ? photo.file.size + photo.preview.width * photo.preview.height * 4 : 0); }, 0);
   // Trim oldest undo/farthest redo before releasing sources; never evict current photos.
   while ((state.past.length || state.future.length) && bytes() > RESOURCE_BUDGET) {

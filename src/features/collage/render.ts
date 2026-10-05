@@ -2,7 +2,7 @@ import { fonts } from "../layers/types";
 import { drawOrientedPhoto } from "./draw-photo";
 import { renderLayers } from "../layers/render-layers";
 import type { EditableLayer } from "../layers/types";
-export interface RenderOptions { layoutId?: string; layers?: EditableLayer[]; assets?: Map<string, HTMLImageElement>; cutGuide?: boolean }
+export interface RenderOptions { layoutId?: string; layers?: EditableLayer[]; assets?: Map<string, HTMLImageElement>; cutGuide?: boolean; logo?: Photo; logoSource?: CanvasImageSource }
 import { applyPhotoEffects, hasPhotoEffects } from "../photos/effects";
 import type { Photo } from "../photos/types";
 import type { StripSettings } from "../templates/templates";
@@ -55,6 +55,7 @@ export function renderCollage(canvas: HTMLCanvasElement, photos: (Photo | null)[
    ctx.font = "17px sans-serif"; ctx.fillText(settings.date, layout.width / 2, footer.y + 104, footer.width - 18);
    ctx.font = "italic 20px Georgia, serif"; ctx.fillText(settings.footer, layout.width / 2, footer.y + 144, footer.width - 18);
   }
+  if(options.logo){const image=options.logoSource??options.logo.preview;const size=Math.min(110,layout.width*.16);const ratio=options.logo.width/options.logo.height;const w=ratio>1?size:size*ratio,h=ratio>1?size/ratio:size;ctx.drawImage(image,layout.width-w-32,layout.height-h-24,w,h);}
   renderLayers(ctx, options.layers ?? [], options.assets ?? new Map());
   ctx.restore();
  }

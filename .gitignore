@@ -10,3 +10,13 @@ playwright-report/
 /.codex/
 /AGENTS.md
 /CLAUDE.md
+
+# Local credentials
+.env*
+!.env.example
+/supabase/.temp/
+/supabase/.branches/
+
+/public/sw.js
+
+/.next-cloud-test/

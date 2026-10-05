@@ -6,16 +6,16 @@ import { calculateCrop, calculateLayout, orientedDimensions, clamp, type PrintFo
 import { loadStickerAssets } from "../layers/stickers";
 import type { EditableLayer } from "../layers/types";
 import { renderCollage } from "../collage/render";
-export function StripPreview({ photos, settings, format, selected, editable, onSelect, onTransform, layoutId = "classic", layers = [], selectedLayer, onLayerSelect, onLayerChange, guides = false, margins = false }: { photos: (Photo | null)[]; settings: StripSettings; format: PrintFormat; selected: number; editable: boolean; onSelect: (index: number) => void; onTransform: (index: number, transform: PhotoTransform) => void; layoutId?: string; layers?: EditableLayer[]; selectedLayer?: string | null; onLayerSelect?: (id: string) => void; onLayerChange?: (layer: EditableLayer) => void; guides?: boolean; margins?: boolean }) {
+export function StripPreview({ photos, settings, format, selected, editable, onSelect, onTransform, layoutId = "classic", layers = [], selectedLayer, onLayerSelect, onLayerChange, guides = false, margins = false, logo }: { photos: (Photo | null)[]; settings: StripSettings; format: PrintFormat; selected: number; editable: boolean; onSelect: (index: number) => void; onTransform: (index: number, transform: PhotoTransform) => void; layoutId?: string; layers?: EditableLayer[]; selectedLayer?: string | null; onLayerSelect?: (id: string) => void; onLayerChange?: (layer: EditableLayer) => void; guides?: boolean; margins?: boolean; logo?: Photo }) {
  const canvas = useRef<HTMLCanvasElement>(null);
  const drag = useRef<{ x: number; y: number; transform: PhotoTransform; index: number } | null>(null);
  const layout = calculateLayout(settings, layoutId);
  useEffect(() => {
   let cancelled = false; let frame = 0;
-  const draw = (assets?: Map<string, HTMLImageElement>) => { frame = requestAnimationFrame(() => { if (!cancelled && canvas.current) renderCollage(canvas.current, photos, settings, format, undefined, layout.width === 600 ? 0.7 : 0.5, { layoutId, layers, assets }); }); };
+  const draw = (assets?: Map<string, HTMLImageElement>) => { frame = requestAnimationFrame(() => { if (!cancelled && canvas.current) renderCollage(canvas.current, photos, settings, format, undefined, layout.width === 600 ? 0.7 : 0.5, { layoutId, layers, assets, logo }); }); };
   if (layers.some(layer => layer.type === "sticker")) void loadStickerAssets().then(draw).catch(() => draw()); else draw();
   return () => { cancelled = true; cancelAnimationFrame(frame); };
- }, [photos, settings, format, layoutId, layers, layout.width]);
+ }, [photos, settings, format, layoutId, layers, layout.width, logo]);
  const strips = format === "sheet" && layout.width === 600 ? 2 : 1;
  const layerDrag = useRef<{ x: number; y: number; layer: EditableLayer } | null>(null);
  return <div className={`strip-preview ${format} ${layout.width !== 600 ? "grid-preview" : ""}`}>
